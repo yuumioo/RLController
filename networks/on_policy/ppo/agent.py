@@ -92,7 +92,7 @@ class PPOAgent(object):
             
         # Normalizing the rewards
         rewards = torch.tensor(rewards, dtype=torch.float32).to(device)
-        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-7)
+        #rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-7)
 
         # convert list to tensor
         old_states = torch.squeeze(torch.stack(self.memory.observation, dim=0)).detach().to(device)
@@ -113,7 +113,10 @@ class PPOAgent(object):
             ratios = torch.exp(logprobs - old_logprobs.detach())
 
             # Finding Surrogate Loss
-            advantages = rewards - values.detach()   
+            advantages = rewards - values.detach()
+
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1-self.clip, 1+self.clip) * advantages
 
@@ -123,6 +126,9 @@ class PPOAgent(object):
             # take gradient step
             self.optimizer.zero_grad()
             loss.mean().backward()
+
+            torch.nn.utils.clip_grad_norm_(self.policy.parameters(), 0.5)
+
             self.optimizer.step()
 
         self.old_policy.load_state_dict(self.policy.state_dict())

@@ -38,7 +38,7 @@ class CarlaEnvironment():
         self.sensor_list = list()
         self.actor_list = list()
         self.walker_list = list()
-        self.create_pedestrians()
+        #self.create_pedestrians()
 
 
 
@@ -46,12 +46,26 @@ class CarlaEnvironment():
     def reset(self):
 
         try:
-            
+            """
             if len(self.actor_list) != 0 or len(self.sensor_list) != 0:
                 self.client.apply_batch([carla.command.DestroyActor(x) for x in self.sensor_list])
                 self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
+                self.client.apply_batch([carla.command.DestroyActor(x) for x in self.walker_list])
                 self.sensor_list.clear()
                 self.actor_list.clear()
+                self.walker_list.clear()
+            """
+            if len(self.sensor_list) != 0:
+                self.client.apply_batch([carla.command.DestroyActor(x) for x in self.sensor_list])
+                self.sensor_list.clear()
+
+            if len(self.actor_list) != 0:
+                self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
+                self.actor_list.clear()
+
+            if len(self.walker_list) != 0:
+                self.client.apply_batch([carla.command.DestroyActor(x) for x in self.walker_list])
+                self.walker_list.clear()
             self.remove_sensors()
 
 
@@ -62,14 +76,23 @@ class CarlaEnvironment():
                 transform = self.map.get_spawn_points()[38] #Town7  is 38 
                 self.total_distance = 750
             elif self.town == "Town02":
-                transform = self.map.get_spawn_points()[1] #Town2 is 1
+                transform = self.map.get_spawn_points()[1] #Town2 is 1, 101 intotal
                 self.total_distance = 780
+                # print(len(self.map.get_spawn_points()))
+                # print(self.map.get_spawn_points())
             else:
                 transform = random.choice(self.map.get_spawn_points())
                 self.total_distance = 250
 
             self.vehicle = self.world.try_spawn_actor(vehicle_bp, transform)
+            if self.vehicle is None:
+                print("WARNING [env.reset]: Failed to spawn vehicle (spawn point likely occupied). Retrying.")
+                # Return None explicitly so the main loop's check can catch it
+                return None
+
             self.actor_list.append(self.vehicle)
+
+            self.create_pedestrians(self.vehicle.get_location(), radius=20.0)
 
 
             # Camera Sensor
@@ -88,6 +111,8 @@ class CarlaEnvironment():
             self.collision_obj = CollisionSensor(self.vehicle)
             self.collision_history = self.collision_obj.collision_data
             self.sensor_list.append(self.collision_obj.sensor)
+
+            self.set_other_vehicles()
 
             
             self.timesteps = 0
@@ -146,7 +171,13 @@ class CarlaEnvironment():
             self.episode_start_time = time.time()
             return [self.image_obs, self.navigation_obs]
 
-        except:
+        except Exception as e:
+            print(f"\n!!!! CRITICAL ERROR IN env.reset() !!!!")
+            print(f"Error: {e}\n")
+            # This will print the exact line where the error happened
+            import traceback
+            traceback.print_exc()
+
             self.client.apply_batch([carla.command.DestroyActor(x) for x in self.sensor_list])
             self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
             self.client.apply_batch([carla.command.DestroyActor(x) for x in self.walker_list])
@@ -156,6 +187,7 @@ class CarlaEnvironment():
             if self.display_on:
                 pygame.quit()
 
+            return None
 
 # ----------------------------------------------------------------
 # Step method is used for implementing actions taken by our agent|
@@ -298,14 +330,20 @@ class CarlaEnvironment():
                 for sensor in self.sensor_list:
                     sensor.destroy()
                 
-                self.remove_sensors()
-                
+                #self.remove_sensors()
+                """
                 for actor in self.actor_list:
                     actor.destroy()
-            
+                """
             return [self.image_obs, self.navigation_obs], reward, done, [self.distance_covered, self.center_lane_deviation]
 
-        except:
+        except Exception as e:
+            print(f"\n!!!! CRITICAL ERROR IN env.step() !!!!")
+            print(f"Error: {e}\n")
+            # This will print the exact line where the error happened
+            import traceback
+            traceback.print_exc()
+        
             self.client.apply_batch([carla.command.DestroyActor(x) for x in self.sensor_list])
             self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
             self.client.apply_batch([carla.command.DestroyActor(x) for x in self.walker_list])
@@ -322,7 +360,7 @@ class CarlaEnvironment():
 # -------------------------------------------------
 
     # Walkers are to be included in the simulation yet!
-    def create_pedestrians(self):
+    def create_pedestrians(self, ego_location, radius=50.0):
         try:
 
             # Our code for this method has been broken into 3 sections.
@@ -332,10 +370,27 @@ class CarlaEnvironment():
             walker_spawn_points = []
             for i in range(NUMBER_OF_PEDESTRIAN):
                 spawn_point_ = carla.Transform()
+
+                offset_x = random.uniform(-radius, radius)
+                offset_y = random.uniform(-radius, radius)
+                random_point = carla.Location(ego_location.x + offset_x, 
+                                              ego_location.y + offset_y, 
+                                              ego_location.z)
+                waypoint = self.map.get_waypoint(random_point, 
+                                                project_to_road=True, 
+                                                lane_type=carla.LaneType.Sidewalk)
+                if waypoint is not None:
+                    # Add a small Z offset to spawn them standing on the sidewalk, not in it
+                    spawn_location = waypoint.transform.location + carla.Location(z=1.0) 
+                    spawn_point_.location = spawn_location
+                    walker_spawn_points.append(spawn_point_)
+                    #print(f"generating {i}th pedestrian")
+                """
                 loc = self.world.get_random_location_from_navigation()
                 if (loc != None):
                     spawn_point_.location = loc
                     walker_spawn_points.append(spawn_point_)
+                """
 
             # 2. We spawn the walker actor and ai controller
             # Also set their respective attributes
@@ -371,9 +426,17 @@ class CarlaEnvironment():
                 all_actors[i].go_to_location(
                     self.world.get_random_location_from_navigation())
 
-        except:
-            self.client.apply_batch(
-                [carla.command.DestroyActor(x) for x in self.walker_list])
+        except Exception as e:
+            print(f"\n\n!!!!!!!!!!!!!!!!!!!!!!")
+            print(f"CRITICAL ERROR WHEN GENRATING PEDESTRIAN:")
+            print(e)
+            import traceback
+            traceback.print_exc() # Prints the full error traceback
+            print(f"!!!!!!!!!!!!!!!!!!!!!!\n\n")
+            print("Warning [env.set_other_vehicles]: Failed to spawn one or more pedestrians.")
+            raise e
+            #self.client.apply_batch(
+            #    [carla.command.DestroyActor(x) for x in self.walker_list])
 
 
 # ---------------------------------------------------
@@ -393,10 +456,18 @@ class CarlaEnvironment():
                 if other_vehicle is not None:
                     other_vehicle.set_autopilot(True)
                     self.actor_list.append(other_vehicle)
-            print("NPC vehicles have been generated in autopilot mode.")
-        except:
-            self.client.apply_batch(
-                [carla.command.DestroyActor(x) for x in self.actor_list])
+            #print("NPC vehicles have been generated in autopilot mode.")
+        except Exception as e:
+            print(f"\n\n!!!!!!!!!!!!!!!!!!!!!!")
+            print(f"CRITICAL ERROR WHEN GENRATING OTHER CARS:")
+            print(e)
+            import traceback
+            traceback.print_exc() # Prints the full error traceback
+            print(f"!!!!!!!!!!!!!!!!!!!!!!\n\n")
+            print("Warning [env.set_other_vehicles]: Failed to spawn one or more NPC vehicles.")
+            pass
+            #self.client.apply_batch(
+            #    [carla.command.DestroyActor(x) for x in self.actor_list])
 
 
 # ----------------------------------------------------------------

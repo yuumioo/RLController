@@ -195,7 +195,7 @@ def runner():
 
 
                 print('Episode: {}'.format(episode),', Timestep: {}'.format(timestep),', Reward:  {:.2f}'.format(current_ep_reward),', Average Reward:  {:.2f}'.format(cumulative_score))
-                if episode % 10 == 0:
+                if episode % 10 == 0:     
                     agent.learn()
                     agent.chkpt_save()
                     chkt_file_nums = len(next(os.walk(f'checkpoints/PPO/{town}'))[2])
@@ -234,12 +234,15 @@ def runner():
                     with open(chkpt_file, 'wb') as handle:
                         pickle.dump(data_obj, handle)
                         
-            print("Terminating the run.")
+            print("Finished training. Terminating the run.")
             sys.exit()
         else:
             #Testing
             while timestep < args.test_timesteps:
                 observation = env.reset()
+                if observation is None:
+                    print("\nWARNING: env.reset() returned None. Skipping this episode attempt.\n")
+                    continue  # Skips the rest of the loop and tries to reset again
                 observation = encode.process(observation)
 
                 current_ep_reward = 0
@@ -287,6 +290,15 @@ def runner():
 
             print("Terminating the run.")
             sys.exit()
+
+    except Exception as e:
+        print(f"\n\n!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"CRITICAL ERROR IN MAIN RUNNER:")
+        print(e)
+        import traceback
+        traceback.print_exc() # Prints the full error traceback
+        print(f"!!!!!!!!!!!!!!!!!!!!!!\n\n")
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     finally:
         sys.exit()
