@@ -38,6 +38,7 @@ class CarlaEnvironment():
         self.sensor_list = list()
         self.actor_list = list()
         self.walker_list = list()
+        self.random_env = random.Random(2) # need to manually modify for different agent
         #self.create_pedestrians()
 
 
@@ -64,7 +65,7 @@ class CarlaEnvironment():
 
 
         try:
-            random_weather = random.choice(weather_presets)
+            random_weather = self.random_env.choice(weather_presets)
             self.world.set_weather(random_weather)
             """
             if len(self.actor_list) != 0 or len(self.sensor_list) != 0:
@@ -391,8 +392,8 @@ class CarlaEnvironment():
             for i in range(NUMBER_OF_PEDESTRIAN):
                 spawn_point_ = carla.Transform()
 
-                offset_x = random.uniform(-radius, radius)
-                offset_y = random.uniform(-radius, radius)
+                offset_x = self.random_env.uniform(-radius, radius)
+                offset_y = self.random_env.uniform(-radius, radius)
                 random_point = carla.Location(ego_location.x + offset_x, 
                                               ego_location.y + offset_y, 
                                               ego_location.z)
@@ -415,7 +416,7 @@ class CarlaEnvironment():
             # 2. We spawn the walker actor and ai controller
             # Also set their respective attributes
             for spawn_point_ in walker_spawn_points:
-                walker_bp = random.choice(
+                walker_bp = self.random_env.choice(
                     self.blueprint_library.filter('walker.pedestrian.*'))
                 walker_controller_bp = self.blueprint_library.find(
                     'controller.ai.walker')
@@ -469,8 +470,8 @@ class CarlaEnvironment():
             # NPC vehicles generated and set to autopilot
             # One simple for loop for creating x number of vehicles and spawing them into the world
             for _ in range(0, NUMBER_OF_VEHICLES):
-                spawn_point = random.choice(self.map.get_spawn_points())
-                bp_vehicle = random.choice(self.blueprint_library.filter('vehicle'))
+                spawn_point = self.random_env.choice(self.map.get_spawn_points())
+                bp_vehicle = self.random_env.choice(self.blueprint_library.filter('vehicle'))
                 other_vehicle = self.world.try_spawn_actor(
                     bp_vehicle, spawn_point)
                 if other_vehicle is not None:
@@ -551,7 +552,7 @@ class CarlaEnvironment():
     def get_vehicle(self, vehicle_name):
         blueprint = self.blueprint_library.filter(vehicle_name)[0]
         if blueprint.has_attribute('color'):
-            color = random.choice(
+            color = self.random_env.choice(
                 blueprint.get_attribute('color').recommended_values)
             blueprint.set_attribute('color', color)
         return blueprint
@@ -560,7 +561,7 @@ class CarlaEnvironment():
     # Spawn the vehicle in the environment
     def set_vehicle(self, vehicle_bp, spawn_points):
         # Main vehicle spawned into the env
-        spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+        spawn_point = self.random_env.choice(spawn_points) if spawn_points else carla.Transform()
         self.vehicle = self.world.try_spawn_actor(vehicle_bp, spawn_point)
 
 
