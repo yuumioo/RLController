@@ -234,7 +234,16 @@ def runner():
                     with open(chkpt_file, 'wb') as handle:
                         pickle.dump(data_obj, handle)
                         
-            print("Finished training. Terminating the run.")
+            print("Finished training. Saving the final model...")
+            agent.save()
+            chkt_file_nums = len(next(os.walk(f'checkpoints/PPO/{town}'))[2])
+            chkpt_file = f'checkpoints/PPO/{town}/checkpoint_ppo_'+str(chkt_file_nums)+'.pickle'
+            data_obj = {'cumulative_score': cumulative_score, 'episode': episode, 'timestep': timestep, 'action_std_init': action_std_init}
+            with open(chkpt_file, 'wb') as handle:
+                pickle.dump(data_obj, handle)
+            print(f"Final model and data saved as ..._{chkt_file_nums}.pth / .pickle")
+
+            print("Terminating the run.")
             sys.exit()
         else:
             #Testing

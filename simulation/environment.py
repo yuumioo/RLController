@@ -44,8 +44,28 @@ class CarlaEnvironment():
 
     # A reset function for reseting our environment.
     def reset(self):
+        weather_presets = [
+            carla.WeatherParameters.ClearNoon,
+            carla.WeatherParameters.CloudyNoon,
+            carla.WeatherParameters.WetNoon,
+            carla.WeatherParameters.WetCloudyNoon,
+            carla.WeatherParameters.MidRainyNoon,
+            carla.WeatherParameters.HardRainNoon,
+            carla.WeatherParameters.SoftRainNoon,
+
+            carla.WeatherParameters.ClearSunset,
+            carla.WeatherParameters.CloudySunset,
+            carla.WeatherParameters.WetSunset,
+            carla.WeatherParameters.WetCloudySunset,
+            carla.WeatherParameters.MidRainSunset,
+            carla.WeatherParameters.HardRainSunset,
+            carla.WeatherParameters.SoftRainSunset,
+        ]
+
 
         try:
+            random_weather = random.choice(weather_presets)
+            self.world.set_weather(random_weather)
             """
             if len(self.actor_list) != 0 or len(self.sensor_list) != 0:
                 self.client.apply_batch([carla.command.DestroyActor(x) for x in self.sensor_list])

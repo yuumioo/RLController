@@ -30,9 +30,9 @@ MODEL_TARGET = 'carla_dueling_dqn_target.pth'
 
 #Proximal Policy Optimization (hyper)parameters
 EPISODE_LENGTH = 7500
-TOTAL_TIMESTEPS = 2e6
+TOTAL_TIMESTEPS = 2e6 + 1e6 * 1
 ACTION_STD_INIT = 0.2
 TEST_TIMESTEPS = 5e4
-PPO_LEARNING_RATE = 1e-4  
+PPO_LEARNING_RATE = 1e-5 # 1e-4  
 PPO_CHECKPOINT_DIR = 'preTrained_models/ppo/'
 POLICY_CLIP = 0.2
